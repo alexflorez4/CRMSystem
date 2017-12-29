@@ -1,0 +1,68 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:context="http://www.springframework.org/schema/context"
+
+       xsi:schemaLocation="
+	    http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd">
+
+    <bean id="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager">
+        <property name="entityManagerFactory" ref="entityManagerFactory"/>
+    </bean>
+
+    <!--  Data source -->
+    <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+        <property name="driverClassName" value="org.hsqldb.jdbcDriver"/>
+        <property name="url" value="jdbc:hsqldb:file:database.dat;shutdown=true"/>
+        <property name="username" value="sa"/>
+        <property name="password" value=""/>
+    </bean>
+
+    <bean id="entityManagerFactory"
+          class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
+
+        <property name="jpaVendorAdapter">
+            <bean class="org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter">
+                <property name="showSql" value="true"/>
+                <property name="generateDdl" value="true"/>
+            </bean>
+        </property>
+
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+    <!--DAO-->
+    <bean id="customerDao" class="com.vpp.dataaccess.CustomerDaoJpaImpl"/>
+
+    <bean id="actionDao" class="com.vpp.dataaccess.ActionDaoJpaImpl"/>
+
+    <!--Service Beans-->
+    <bean id="customerService" class="com.vpp.services.customers.CustomerManagementServiceImpl">
+        <constructor-arg ref="customerDao"/>
+    </bean>
+    <bean id="diaryService" class="com.vpp.services.diary.DiaryManagementServiceImpl">
+        <constructor-arg ref="actionDao"/>
+    </bean>
+
+    <bean id="callService" class="com.vpp.services.calls.CallHandlingServiceImpl">
+        <constructor-arg ref="customerService"/>
+        <constructor-arg ref="diaryService"/>
+    </bean>
+
+    <!-- Advice -->
+    <bean id="performanceAdvice" class="com.vpp.advice.PerformanceAdvice"/>
+    <aop:config>
+        <aop:aspect ref="performanceAdvice">
+            <aop:around method="recordTiming" pointcut="execution ( * com.vpp.services..*.* (..) )"/>
+        </aop:aspect>
+    </aop:config>
+
+    <tx:annotation-driven/>
+    <context:annotation-config/>
+
+</beans>
